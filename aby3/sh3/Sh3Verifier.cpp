@@ -155,7 +155,7 @@ namespace aby3{
         comm.mNext.asyncSendCopy(x);
 
         i64 xPrev;
-        comm.mPrev.asyncRecv(xPrev).get();
+        comm.mPrev.recv(xPrev);
 
         if (x != xPrev) {
             comm.mPrev.cancel();
@@ -163,6 +163,17 @@ namespace aby3{
             return false;
         }
         return true;
+    }
+
+    Sh3Task Sh3Verifier::compareView(Sh3Task dep, i64& x, bool& dest) {
+        // TODO: Move compare view to hash function optimization
+        return dep.then([&x, &dest](CommPkg& comm, Sh3Task& self) {
+            comm.mNext.asyncSendCopy(x);
+
+            i64 xPrev;
+            comm.mPrev.recv(xPrev);
+            dest = (x == xPrev);
+        });
     }
 
     bool Sh3Verifier::verifyTripleUsingAnother(CommPkg& comm, const std::array<si64, 3>& xyz, const std::array<si64, 3>& abc) {
