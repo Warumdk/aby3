@@ -29,6 +29,10 @@ namespace aby3
             bool verifyTripleWithOpening(CommPkg& comm, const std::array<sbMatrix, 3>& abc);
             Sh3Task verifyTripleWithOpening(Sh3Task dep, const std::array<sbMatrix, 3>& abc, bool& dest);
 
+            bool compareView(CommPkg& comm, i64& x);
+
+            bool verifyTripleUsingAnother(CommPkg& comm, const std::array<si64, 3>& xyz, const std::array<si64, 3>& abc);
+            bool verifyTripleUsingAnother(CommPkg& comm, const std::array<sb64, 3>& xyz, const std::array<sb64, 3>& abc);
 
         u64 mPartyIdx;
         Sh3Encryptor mEncryptor;
