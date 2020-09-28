@@ -108,6 +108,7 @@ namespace aby3
             si64& operator=(const si64& copy);
             si64 operator+(const si64& rhs) const;
             si64 operator-(const si64& rhs) const;
+            si64 operator-(const i64& rhs) const;
 
             value_type& operator[](u64 i) { return mData[i]; }
             const value_type& operator[](u64 i) const { return mData[i]; }
@@ -130,8 +131,8 @@ namespace aby3
 
 
             sb64& operator=(const sb64& copy) = default;
-            sb64 operator^(const sb64& x) { return { { mData[0] ^ x.mData[0], mData[1] ^ x.mData[1] } }; }
-
+            sb64 operator^(const sb64& x) const { return { { mData[0] ^ x.mData[0], mData[1] ^ x.mData[1] } }; }
+            sb64 operator^(const i64& x) const {return {{mData[0], mData[1]^x}}; }
         };
 
         struct si64Matrix
@@ -508,6 +509,24 @@ namespace aby3
             ret.mData[0] = mData[0] - rhs.mData[0];
             ret.mData[1] = mData[1] - rhs.mData[1];
             return ret;
+        }
+
+        inline si64 si64::operator-(const i64 &rhs) const {
+            si64 ret;
+            ret.mData[0] = mData[0];
+            ret.mData[1] = mData[1] - rhs;
+            return  ret;
+        }
+
+        inline si64 operator*(const i64& lhs, const si64& rhs) {
+            si64 ret;
+            ret.mData[0] = lhs * rhs.mData[0];
+            ret.mData[1] = lhs * rhs.mData[1];
+            return ret;
+        }
+
+        inline sb64 operator*(const i64& lhs, const sb64& rhs) {
+            return {{lhs * rhs.mData[0], lhs * rhs.mData[1]}};
         }
 
         inline Ref<si64> si64Matrix::operator()(u64 x, u64 y) const

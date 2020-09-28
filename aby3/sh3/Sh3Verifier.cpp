@@ -149,4 +149,73 @@ namespace aby3{
             dest = (c == a*b);
         });
     }
+
+    bool Sh3Verifier::compareView(CommPkg &comm, i64& x) {
+        // TODO: Move compare view to hash function optimization
+        comm.mNext.asyncSendCopy(x);
+
+        i64 xPrev;
+        comm.mPrev.asyncRecv(xPrev).get();
+
+        if (x != xPrev) {
+            comm.mPrev.cancel();
+            comm.mNext.cancel();
+            return false;
+        }
+        return true;
+    }
+
+    bool Sh3Verifier::verifyTripleUsingAnother(CommPkg& comm, const std::array<si64, 3>& xyz, const std::array<si64, 3>& abc) {
+        si64 sRho = xyz[0] - abc[0];
+        si64 sSigma = xyz[1] - abc[1];
+        i64 rho = mEncryptor.revealAll(comm, sRho);
+        i64 sigma = mEncryptor.revealAll(comm, sSigma);
+
+        if (!this->compareView(comm, rho)) {
+            return  false;
+        }
+
+        if (!this->compareView(comm, sigma)) {
+            return  false;
+        }
+
+        si64 sDelta = xyz[2] - abc[2] - (sigma * abc[0]) - (rho * abc[1]) - sigma * rho;
+
+        i64 delta = mEncryptor.revealAll(comm, sDelta);
+
+        if (delta != 0) {
+            comm.mPrev.cancel();
+            comm.mNext.cancel();
+            return false;
+        }
+
+        return this->compareView(comm, delta);
+    }
+
+    bool Sh3Verifier::verifyTripleUsingAnother(CommPkg& comm, const std::array<sb64, 3>& xyz, const std::array<sb64, 3>& abc) {
+        sb64 sRho = xyz[0] ^ abc[0];
+        sb64 sSigma = xyz[1] ^ abc[1];
+        i64 rho = mEncryptor.revealAll(comm, sRho);
+        i64 sigma = mEncryptor.revealAll(comm, sSigma);
+
+        if (!this->compareView(comm, rho)) {
+            return  false;
+        }
+
+        if (!this->compareView(comm, sigma)) {
+            return  false;
+        }
+
+        sb64 sDelta = xyz[2] ^ abc[2] ^ (sigma * abc[0]) ^ (rho * abc[1]) ^ sigma * rho;
+
+        i64 delta = mEncryptor.revealAll(comm, sDelta);
+
+        if (delta != 0) {
+            comm.mPrev.cancel();
+            comm.mNext.cancel();
+            return false;
+        }
+
+        return this->compareView(comm, delta);
+    }
 }
