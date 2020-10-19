@@ -258,4 +258,33 @@ namespace aby3{
             dest = this->compareView(comm, delta);
         });
     }
+
+    Sh3Task Sh3Verifier::verifyTripleUsingAnother(Sh3Task dep, const std::array<sb64, 3>& xyz, const std::array<sb64, 3>& abc, bool& dest) {
+        return dep.then([this, &xyz, &abc, &dest](CommPkg& comm, Sh3Task self){
+            sb64 sRho = xyz[0] ^ abc[0];
+            sb64 sSigma = xyz[1] ^ abc[1];
+            i64 rho = mEncryptor.revealAll(comm, sRho);
+            i64 sigma = mEncryptor.revealAll(comm, sSigma);
+
+            if (!this->compareView(comm, rho)) {
+                dest = false;
+            }
+
+            if (!this->compareView(comm, sigma)) {
+                dest = false;
+            }
+
+            sb64 sDelta = xyz[2] ^ abc[2] ^ (sigma * abc[0]) ^ (rho * abc[1]) ^ sigma * rho;
+
+            i64 delta = mEncryptor.revealAll(comm, sDelta);
+
+            if (delta != 0) {
+                comm.mPrev.cancel();
+                comm.mNext.cancel();
+                dest = false;
+            }
+
+            dest = this->compareView(comm, delta);
+        });
+    }
 }
