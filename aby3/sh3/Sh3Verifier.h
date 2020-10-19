@@ -39,6 +39,7 @@ namespace aby3 {
         Sh3Task verifyTripleWithOpening(Sh3Task dep, const std::array<sbMatrix, 3> &abc, bool &dest);
 
         bool compareView(CommPkg &comm, i64 &x);
+        bool compareView(CommPkg &comm, i64Matrix &x);
 
         Sh3Task compareView(Sh3Task dep, i64 &x, bool &dest);
 
