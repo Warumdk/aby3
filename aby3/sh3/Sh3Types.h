@@ -529,6 +529,17 @@ namespace aby3
             return {{lhs * rhs.mData[0], lhs * rhs.mData[1]}};
         }
 
+        inline sbMatrix operator^(const sbMatrix& lhs, const sbMatrix& rhs) {
+            sbMatrix ret;
+            for (int i = 0; i < lhs.mShares[0].cols(); ++i) {
+                for (int j = 0; j < lhs.mShares[0].rows(); ++i) {
+                    ret.mShares[0][j][i] = lhs.mShares[0][j][i] ^ rhs.mShares[0][j][i];
+                    ret.mShares[1][j][i] = lhs.mShares[1][j][i] ^ rhs.mShares[1][j][i];
+                }
+            }
+            return ret;
+        }
+
         inline si64Matrix operator*(const i64Matrix& lhs, const si64Matrix& rhs) {
             si64Matrix ret;
             ret.mShares[0] = lhs * rhs.mShares[0];
@@ -633,7 +644,4 @@ namespace aby3
             mMtx.mShares[1].col(mIdx) = col.mMtx.mShares[1].col(col.mIdx);
             return col;
         }
-
-    
-
 }

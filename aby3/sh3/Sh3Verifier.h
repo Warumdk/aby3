@@ -86,7 +86,13 @@ namespace aby3 {
         verifyTripleUsingAnother(Sh3Task dep, const std::array<sbMatrix, 3> &xyz, const std::array<sbMatrix, 3> &abc,
                                  bool &dest);
 
+
+
         u64 mPartyIdx;
         Sh3Encryptor mEncryptor;
+    private:
+        std::vector<i64> coin(CommPkg &comm, int s);
+
+        Sh3Task coin(Sh3Task dep, int s, std::vector<i64> &dest);
     };
 }
