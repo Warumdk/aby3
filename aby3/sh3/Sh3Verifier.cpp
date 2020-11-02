@@ -449,8 +449,35 @@ namespace aby3 {
     }
 
     Sh3Task Sh3Verifier::verifyTripleUsingAnother(Sh3Task dep, const std::array<sbMatrix, 3> &xyz,
-                                                  const std::array<sbMatrix, 3> &abc, bool &dest) {
-        return Sh3Task();
+                                                  const std::array<si64Matrix, 3> &abc, bool &dest) {
+        return dep.then([this, &xyz, &abc, &dest](CommPkg &comm, Sh3Task self){
+            sbMatrix sRho = xyz[0] ^ abc[0];
+            sbMatrix sSigma = xyz[1] ^ abc[1];
+            i64Matrix rho = i64Matrix(abc[0].rows(), abc[0].cols());
+            i64Matrix sigma = i64Matrix (abc[1].rows(), abc[1].cols());
+            mEncryptor.revealAll(comm, sRho, rho);
+            mEncryptor.revealAll(comm, sSigma, sigma);
+
+            if (!this->compareView(comm, rho)) {
+                dest = false;
+            }
+
+            if (!this->compareView(comm, sigma)) {
+                dest = false;
+            }
+
+            sbMatrix sDelta = xyz[2] ^ abc[2] - (sigma * abc[0]) - (rho * abc[1]) - sigma * rho;
+            i64Matrix delta = i64Matrix(sDelta.rows(), sDelta.i64Cols());
+            mEncryptor.revealAll(comm, sDelta, delta);
+
+            if (delta != i64Matrix(delta.rows(), delta.cols())) {
+                comm.mPrev.cancel();
+                comm.mNext.cancel();
+                dest = false;
+            }
+
+            dest = this->compareView(comm, delta);
+        });
     }
 
     std::vector<i64> Sh3Verifier::coin(CommPkg &comm, int s) {

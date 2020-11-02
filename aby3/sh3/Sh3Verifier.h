@@ -83,7 +83,7 @@ namespace aby3 {
                                          bool &dest);
 
         Sh3Task
-        verifyTripleUsingAnother(Sh3Task dep, const std::array<sbMatrix, 3> &xyz, const std::array<sbMatrix, 3> &abc,
+        verifyTripleUsingAnother(Sh3Task dep, const std::array<sbMatrix, 3> &xyz, const std::array<si64Matrix, 3> &abc,
                                  bool &dest);
 
         template<typename T>
