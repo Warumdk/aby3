@@ -407,18 +407,45 @@ namespace aby3 {
     template<Decimal D>
     Sh3Task Sh3Verifier::verifyTripleUsingAnother(Sh3Task dep, const std::array<sf64<D>, 3> &xyz,
                                                   const std::array<sf64<D>, 3> &abc, bool &dest) {
-        return Sh3Task();
+        return this->verifyTripleUsingAnother(dep, xyz, abc, dest);
     }
 
     Sh3Task Sh3Verifier::verifyTripleUsingAnother(Sh3Task dep, const std::array<si64Matrix, 3> &xyz,
                                                   const std::array<si64Matrix, 3> &abc, bool &dest) {
-        return Sh3Task();
+        return dep.then([this, &xyz, &abc, &dest](CommPkg &comm, Sh3Task self){
+            si64Matrix sRho = xyz[0] - abc[0];
+            si64Matrix sSigma = xyz[1] - abc[1];
+            i64Matrix rho = i64Matrix(abc[0].rows(), abc[0].cols());
+            i64Matrix sigma = i64Matrix (abc[1].rows(), abc[1].cols());
+            mEncryptor.revealAll(comm, sRho, rho);
+            mEncryptor.revealAll(comm, sSigma, sigma);
+
+            if (!this->compareView(comm, rho)) {
+                dest = false;
+            }
+
+            if (!this->compareView(comm, sigma)) {
+                dest = false;
+            }
+
+            si64Matrix sDelta = xyz[2] - abc[2] - (sigma * abc[0]) - (rho * abc[1]) - sigma * rho;
+            i64Matrix delta = i64Matrix(sDelta.rows(), sDelta.cols());
+            mEncryptor.revealAll(comm, sDelta, delta);
+
+            if (delta != i64Matrix(sDelta.rows(), sDelta.cols())) {
+                comm.mPrev.cancel();
+                comm.mNext.cancel();
+                dest = false;
+            }
+
+            dest = this->compareView(comm, delta);
+        });
     }
 
     template<Decimal D>
     Sh3Task Sh3Verifier::verifyTripleUsingAnother(Sh3Task dep, const std::array<sf64Matrix<D>, 3> &xyz,
                                                   const std::array<sf64Matrix<D>, 3> &abc, bool &dest) {
-        return Sh3Task();
+        return this->verifyTripleUsingAnother(dep, xyz, abc, dest);
     }
 
     Sh3Task Sh3Verifier::verifyTripleUsingAnother(Sh3Task dep, const std::array<sbMatrix, 3> &xyz,
@@ -477,5 +504,14 @@ namespace aby3 {
         return d;
     }
 
-
+    template<typename T>
+    Sh3Task Sh3Verifier::perm(Sh3Task dep, std::vector<T> &d, std::vector<T> &dest) {
+        return dep.then([this, &d, &dest](CommPkg &comm, Sh3Task self){
+            std::vector<i64> indices = this->coin(comm, d.size());
+            for (int j = d.size()-1; j >= 0; --j) {
+                std::swap(d[j], d[indices[j] % d.size()]);
+            }
+            dest = d;
+        });
+    }
 }
