@@ -59,7 +59,7 @@ namespace aby3 {
                                       const std::array<sf64Matrix<D>, 3> &abc);
 
         bool
-        verifyTripleUsingAnother(CommPkg &comm, const std::array<sbMatrix, 3> &xyz, const std::array<sbMatrix, 3> &abc);
+        verifyTripleUsingAnother(CommPkg &comm, const std::array<sbMatrix, 3> &xyz, const std::array<si64Matrix, 3> &abc);
 
 
         Sh3Task verifyTripleUsingAnother(Sh3Task dep, const std::array<si64, 3> &xyz, const std::array<si64, 3> &abc,

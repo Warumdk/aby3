@@ -313,11 +313,11 @@ namespace aby3 {
     }
 
     bool Sh3Verifier::verifyTripleUsingAnother(CommPkg &comm, const std::array<sbMatrix, 3> &xyz,
-                                               const std::array<sbMatrix, 3> &abc) {
+                                               const std::array<si64Matrix, 3> &abc) {
         sbMatrix sRho = xyz[0] ^ abc[0];
         sbMatrix sSigma = xyz[1] ^ abc[1];
-        i64Matrix rho = i64Matrix(abc[0].rows(), abc[0].i64Size());
-        i64Matrix sigma = i64Matrix (abc[1].rows(), abc[1].i64Size());
+        i64Matrix rho = i64Matrix(abc[0].rows(), abc[0].cols());
+        i64Matrix sigma = i64Matrix (abc[1].rows(), abc[1].cols());
         mEncryptor.revealAll(comm, sRho, rho);
         mEncryptor.revealAll(comm, sSigma, sigma);
 
@@ -329,17 +329,17 @@ namespace aby3 {
             return false;
         }
 
-        /*si64Matrix sDelta = xyz[2] ^ abc[2] - (sigma * abc[0]) - (rho * abc[1]) - sigma * rho;
-        i64Matrix delta = i64Matrix(sDelta.rows(), sDelta.cols());
+        sbMatrix sDelta = xyz[2] ^ abc[2] - (sigma * abc[0]) - (rho * abc[1]) - sigma * rho;
+        i64Matrix delta = i64Matrix(sDelta.rows(), sDelta.i64Cols());
         mEncryptor.revealAll(comm, sDelta, delta);
 
-        if (delta != i64Matrix(sDelta.rows(), sDelta.cols())) {
+        if (delta != i64Matrix(delta.rows(), delta.cols())) {
             comm.mPrev.cancel();
             comm.mNext.cancel();
             return false;
-        }*/
-        return false;
-        //return this->compareView(comm, delta);
+        }
+
+        return this->compareView(comm, delta);
     }
 
     Sh3Task
