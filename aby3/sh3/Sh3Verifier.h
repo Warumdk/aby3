@@ -86,7 +86,8 @@ namespace aby3 {
         verifyTripleUsingAnother(Sh3Task dep, const std::array<sbMatrix, 3> &xyz, const std::array<sbMatrix, 3> &abc,
                                  bool &dest);
 
-
+        template<typename T>
+        std::vector<T> perm(CommPkg &comm, std::vector<T> &d);
 
         u64 mPartyIdx;
         Sh3Encryptor mEncryptor;

@@ -467,4 +467,15 @@ namespace aby3 {
             dest = out;
         });
     }
+
+    template<typename T>
+    std::vector<T> Sh3Verifier::perm(CommPkg &comm, std::vector<T> &d) {
+        std::vector<i64> indices = this->coin(comm, d.size());
+        for (int j = d.size()-1; j >= 0; --j) {
+            std::swap(d[j], d[indices[j] % d.size()]);
+        }
+        return d;
+    }
+
+
 }
