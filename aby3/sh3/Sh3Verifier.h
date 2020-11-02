@@ -89,6 +89,9 @@ namespace aby3 {
         template<typename T>
         std::vector<T> perm(CommPkg &comm, std::vector<T> &d);
 
+        template<typename T>
+        Sh3Task perm(Sh3Task dep, std::vector<T> &d, std::vector<T> &dest);
+
         u64 mPartyIdx;
         Sh3Encryptor mEncryptor;
     private:
