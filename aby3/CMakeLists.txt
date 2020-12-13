@@ -12,7 +12,7 @@ set(Boost_USE_MULTITHREADED      ON)
 set(Boost_USE_STATIC_RUNTIME     ON)
 
 find_package(Boost  COMPONENTS system thread)
-
+message(STATUS ${Boost_LIBRARIES})
 if(Boost_FOUND)
   message( "Found Boost at ${Boost_LIBRARIES}")
 else()

@@ -7,6 +7,7 @@
 #include <aby3/sh3/Sh3Evaluator.h>
 #include <aby3/sh3/Sh3Piecewise.h>
 
+#include <aby3/sh3/Sh3Verifier.h>
 namespace aby3
 {
 	class aby3ML
@@ -15,12 +16,32 @@ namespace aby3
 		oc::Channel mPreproNext, mPreproPrev, mNext, mPrev;
 		Sh3Encryptor mEnc;
 		Sh3Evaluator mEval;
+		Sh3Verifier mVerify;
+        std::vector<std::array<sf64Matrix<D16>, 3>> mTriples;
+
 		Sh3Runtime mRt;
 		bool mPrint = true;
 
 		u64 partyIdx()
 		{
 			return mRt.mPartyIdx;
+		}
+
+        template<Decimal D>
+		void multiplicationTriples(int rowsA, int colsA, int rowsB, int colsB, int N){
+		    CommPkg c{mPreproPrev, mPreproNext};
+            std::vector<std::array<sf64Matrix<D>, 3>>  newTriples = mVerify.generateTriples<D>(c, N, 10, 10, 2, 2, 2, 2);//rowsA, colsA, rowsB, colsB);
+            mTriples.insert(mTriples.end(), newTriples.begin(), newTriples.end());
+		}
+
+        template<Decimal D>
+		bool verify(sf64Matrix<D> A, sf64Matrix<D> B, sf64Matrix<D> C) {
+		    std::array<sf64Matrix<D>, 3> triple = {A, B, C};
+            CommPkg c{mPreproPrev, mPreproNext};
+            std::cout << "Wait wat" << std::endl;
+            bool res = mVerify.verifyTripleUsingAnother<D>(c, triple, mTriples.back());
+            mTriples.pop_back();
+            return res;
 		}
 
 		void init(u64 partyIdx, oc::Session& prev, oc::Session& next, oc::block seed);

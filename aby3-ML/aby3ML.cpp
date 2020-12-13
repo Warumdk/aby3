@@ -9,9 +9,12 @@ void aby3::aby3ML::init(u64 partyIdx, oc::Session& prev, oc::Session& next, oc::
 	mNext = next.addChannel();
 
 	CommPkg c{ mPrev, mNext };
-	mRt.init(partyIdx, c);
+    mRt.init(partyIdx, c);
+    CommPkg cp{mPreproPrev, mPreproNext};
+
 
 	oc::PRNG prng(seed);
 	mEnc.init(partyIdx, c, prng.get<block>());
 	mEval.init(partyIdx, c, prng.get<block>());
+	mVerify.init(partyIdx, cp, prng.get<block>());
 }

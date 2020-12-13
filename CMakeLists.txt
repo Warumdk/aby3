@@ -1,3 +1,4 @@
+project(aby3)
 cmake_minimum_required (VERSION 2.8.11)
 
 
@@ -29,10 +30,9 @@ if(NOT ${CMAKE_BUILD_TYPE} STREQUAL "Release")
 endif()
 
 # Select flags.
-SET(CMAKE_CXX_FLAGS_RELEASE "-Ofast -DNDEBUG") 
+SET(CMAKE_CXX_FLAGS_RELEASE "-Ofast -DNDEBUG")
 SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO " -O2 -g -ggdb -rdynamic")
 SET(CMAKE_CXX_FLAGS_DEBUG  "-O0 -g -ggdb -rdynamic")
-
 
 #############################################
 #       Library/includes locations          #
@@ -45,8 +45,9 @@ set(libOTe_Dirs "${CMAKE_SOURCE_DIR}/../libOTe/")
 set(Miracl_Dirs "${libOTe_Dirs}/cryptoTools/thirdparty/linux/miracl/")
 
 # default location for Boost
+SET(Boost_DEBUG ON)
 set(BOOST_ROOT "${libOTe_Dirs}/cryptoTools/thirdparty/linux/boost/")
-
+set(Boost_LIBRARIES "${libOTe_Dirs}/cryptoTools/thirdparty/linux/boost/")
 
 #############################################
 #        Build aby3, com-psi, tests         #

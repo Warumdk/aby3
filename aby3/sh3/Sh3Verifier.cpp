@@ -94,21 +94,7 @@ namespace aby3 {
         });
     }
 
-    template<Decimal D>
-    bool Sh3Verifier::verifyTripleWithOpening(CommPkg &comm, const std::array<sf64Matrix<D>, 3> &abc) {
-        fpMatrix<i64, D> a = fpMatrix<i64, D>(abc[0].rows(), abc[0].cols());
-        fpMatrix<i64, D> b = fpMatrix<i64, D>(abc[1].rows(), abc[1].cols());
-        fpMatrix<i64, D> c = fpMatrix<i64, D>(abc[2].rows(), abc[2].cols());
-        mEncryptor.revealAll(comm, abc[0], a);
-        mEncryptor.revealAll(comm, abc[1], b);
-        mEncryptor.revealAll(comm, abc[2], c);
-        if (c == a * b) {
-            return true;
-        }
-        comm.mNext.cancel();
-        comm.mPrev.cancel();
-        return false;
-    }
+
 
     template<Decimal D>
     Sh3Task Sh3Verifier::verifyTripleWithOpening(Sh3Task dep, const std::array<sf64Matrix<D>, 3> &abc, bool &dest) {
@@ -293,11 +279,17 @@ namespace aby3 {
             return false;
         }
 
-        si64Matrix sDelta = xyz[2] - abc[2] - (sigma * abc[0]) - (rho * abc[1]) - sigma * rho;
+        si64Matrix sDelta = (xyz[2] - abc[2]) - (abc[0] * sigma) - (rho * abc[1]) - (rho * sigma);
+
         i64Matrix delta = i64Matrix(sDelta.rows(), sDelta.cols());
         mEncryptor.revealAll(comm, sDelta, delta);
 
-        if (delta != i64Matrix(sDelta.rows(), sDelta.cols())) {
+        if (delta != i64Matrix::Zero(delta.rows(), delta.cols())) {
+            if (mPartyIdx == 0) {
+                std::stringstream msg;
+                msg << mPartyIdx << std::endl << rho << std::endl << sigma << std::endl << delta << std::endl;
+                std::cout << msg.str();
+            }
             comm.mPrev.cancel();
             comm.mNext.cancel();
             return false;
@@ -306,11 +298,7 @@ namespace aby3 {
         return this->compareView(comm, delta);
     }
 
-    template<Decimal D>
-    bool Sh3Verifier::verifyTripleUsingAnother(CommPkg &comm, const std::array<sf64Matrix<D>, 3> &xyz,
-                                               const std::array<sf64Matrix<D>, 3> &abc) {
-        return this->verifyTripleUsingAnother(comm, xyz, abc);
-    }
+
 
     bool Sh3Verifier::verifyTripleUsingAnother(CommPkg &comm, const std::array<sbMatrix, 3> &xyz,
                                                const std::array<si64Matrix, 3> &abc) {
@@ -522,14 +510,6 @@ namespace aby3 {
         });
     }
 
-    template<typename T>
-    std::vector<T> Sh3Verifier::perm(CommPkg &comm, std::vector<T> &d) {
-        std::vector<i64> indices = this->coin(comm, d.size());
-        for (int j = d.size()-1; j >= 0; --j) {
-            std::swap(d[j], d[indices[j] % d.size()]);
-        }
-        return d;
-    }
 
     template<typename T>
     Sh3Task Sh3Verifier::perm(Sh3Task dep, std::vector<T> &d, std::vector<T> &dest) {
@@ -540,5 +520,116 @@ namespace aby3 {
             }
             dest = d;
         });
+    }
+
+    std::vector<std::array<si64, 3>>
+    Sh3Verifier::generateTriples(CommPkg &comm, int N, int B, int C){
+        // 1) Generate Random Sharings
+        int M = N*B+C;
+        si64 shares[2*M];
+        for (int i = 0; i < 2*M; ++i) {
+            shares[i] = mEncryptor.mShareGen.getRandIntShare();
+        }
+
+        // 2) Generate Multiplication Triples
+        std::vector<std::array<si64, 3>> triples;
+        for (int i = 0; i < (2*M)-1; i+=2) {
+            si64 res{};
+            mEvaluator.asyncMul(mRuntime, shares[i], shares[i+1], res).get();
+            std::array<si64, 3> triple = {shares[i], shares[i+1], res};
+            triples.emplace_back(triple);
+        }
+
+        // 3) Cut-and-bucket
+        triples = this->perm(comm, triples);
+        for (int i = 0; i < C; ++i) {
+            if (!this->verifyTripleWithOpening(comm, triples.back())) {
+                return std::vector<std::array<si64, 3>>{};
+            }
+            triples.pop_back();
+        }
+
+        std::vector<std::vector<std::array<si64, 3>>> buckets;
+        for (int i = 0; i < N; ++i) {
+            std::vector<std::array<si64, 3>> bucket;
+            for (int j = 0; j < B; ++j) {
+                bucket.emplace_back(triples.back());
+                triples.pop_back();
+            }
+            buckets.emplace_back(bucket);
+        }
+
+        // 4) Check Buckets
+        std::vector<std::array<si64, 3>> out;
+        for (int i = 0; i < N; ++i) {
+            for (int j = 1; j < B; ++j) {
+                if(!this->verifyTripleUsingAnother(comm, buckets.at(i).at(0), buckets.at(i).at(j))) {
+                    return std::vector<std::array<si64, 3>>{};
+                }
+            }
+            out.emplace_back(buckets.at(i).at(0));
+        }
+
+        return out;
+    }
+
+    std::vector<std::array<si64Matrix, 3>> Sh3Verifier::generateTriples(CommPkg &comm, int N, int B, int C, int rowsA, int colsA, int rowsB, int colsB) {
+        // 1) Generate Random Sharings
+        int M = N*B+C;
+        std::vector<std::array<si64Matrix, 3>> triples;
+        for (int i = 0; i < M; ++i) {
+            si64Matrix aMatrix(rowsA, colsA);
+            si64Matrix bMatrix(rowsB, colsB);
+            si64Matrix res;
+
+            this->mEncryptor.rand(aMatrix);
+            this->mEncryptor.rand(bMatrix);
+            mEvaluator.asyncMul(mRuntime, aMatrix, bMatrix, res).get();
+            std::array<si64Matrix, 3> triple = {aMatrix, bMatrix, res};
+            triples.emplace_back(triple);
+        }
+        if (mPartyIdx == 0) {
+            std::cout << "1" << std::endl;
+        }
+
+        // 3) Cut-and-bucket
+        triples = this->perm(comm, triples);
+        for (int i = 0; i < C; ++i) {
+            if (!this->verifyTripleWithOpening(comm, triples.back())) {
+                return std::vector<std::array<si64Matrix, 3>>{};
+            }
+            triples.pop_back();
+        }
+        if (mPartyIdx == 0) {
+            std::cout << "2" << std::endl;
+        }
+        std::vector<std::vector<std::array<si64Matrix, 3>>> buckets;
+        for (int i = 0; i < N; ++i) {
+            std::vector<std::array<si64Matrix, 3>> bucket;
+            for (int j = 0; j < B; ++j) {
+                bucket.emplace_back(triples.back());
+                triples.pop_back();
+            }
+            buckets.emplace_back(bucket);
+        }
+        if (mPartyIdx == 0) {
+            std::cout << "3" << std::endl;
+        }
+
+        // 4) Check Buckets
+        std::vector<std::array<si64Matrix, 3>> out;
+        for (int i = 0; i < N; ++i) {
+            for (int j = 1; j < B; ++j) {
+                if(!this->verifyTripleUsingAnother(comm, buckets.at(i).at(0), buckets.at(i).at(j))) {
+                    return std::vector<std::array<si64Matrix, 3>>{};
+                }
+            }
+            out.emplace_back(buckets.at(i).at(0));
+        }
+        if (mPartyIdx == 0) {
+            std::cout << "4" << std::endl;
+        }
+
+        return out;
     }
 }

@@ -47,6 +47,10 @@ namespace aby3
 			return 0;
 		}
 
+		bool verify(eMatrix<double>& A, eMatrix<double>& B, eMatrix<double>& C) {
+		    return C == A * B;
+		}
+
 
 
 

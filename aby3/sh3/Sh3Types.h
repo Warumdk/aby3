@@ -547,6 +547,13 @@ namespace aby3
             return ret;
         }
 
+        inline si64Matrix operator*(const si64Matrix& lhs, const i64Matrix& rhs) {
+            si64Matrix ret;
+            ret.mShares[0] = lhs.mShares[0] * rhs;
+            ret.mShares[1] = lhs.mShares[1] * rhs;
+            return ret;
+        }
+
         inline si64Matrix operator-(const si64Matrix& lhs, const i64Matrix& rhs) {
             si64Matrix ret;
             ret.mShares[0] = lhs.mShares[0];

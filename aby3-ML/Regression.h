@@ -158,6 +158,10 @@ void SGD_Linear(
 
 		DEBUG_PRINT(engine << "E[" << i << "] " << engine.reveal(error) << std::endl);
 
+        bool v = engine.verify(XX, w, error);
+        if (!v) {
+            std::cout << "OH NO!!!" << std::endl;
+        }
 		// compute XX = XX^T
 		XX.transposeInPlace();
 
@@ -170,12 +174,12 @@ void SGD_Linear(
 		DEBUG_PRINT(engine << "W[" << i << "] " << engine.reveal(w) << std::endl);
 
 
-		if (X_test && i % 1000 == 0)
+		if (X_test && i % 100 == 0)
 		{
 			//engine.sync(); 
 			auto now = std::chrono::system_clock::now();
-			auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
 			auto score = test_linearModel(engine, w, *X_test, *Y_test);
+            auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
 
 			if(engine.partyIdx() == 0)
 				lout << i << " @ " << ((i+1) * 1000.0 / dur) <<" iters/s " << Color::Green << score  << std::endl << Color::Default;// << << std::endl;

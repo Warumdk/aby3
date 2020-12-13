@@ -94,7 +94,7 @@ int linear_main_3pc_sh(int N, int Dim, int B, int IT, int testN, int pIdx, bool 
 	std::chrono::time_point<std::chrono::system_clock>
 		preStop,
 		preStart = std::chrono::system_clock::now();
-
+    p.multiplicationTriples<D>(B, Dim, Dim, 1, IT);
 	auto aa = std::async([&]() {
 
 		if (cmd.isSet("noOffline") == false)
@@ -108,7 +108,6 @@ int linear_main_3pc_sh(int N, int Dim, int B, int IT, int testN, int pIdx, bool 
 
 		preStop = std::chrono::system_clock::now();
 	});
-
 
 
 
@@ -143,11 +142,11 @@ int linear_main_3pc_sh(int N, int Dim, int B, int IT, int testN, int pIdx, bool 
 
 	if (print)
 	{
-		ostreamLock ooo(std::cout);
-		ooo << "N: " << N << " D:" << Dim << " B:" << B << " IT:" << IT << " => "
+		std::stringstream msg;
+		msg << "N: " << N << " D:" << Dim << " B:" << B << " IT:" << IT << " => "
 			<< (double(IT ) / seconds) << "  iters/s  " << (bytes * 8 / 1024 / 2024) / seconds << " Mbps"
 			<< " offline: " << (double(IT ) / preSeconds) << "  iters/s  " << (preBytes * 8 / 1024 / 2024) / preSeconds << " Mbps" << std::endl;
-
+        std::cout << msg.str() << std::flush;
 
 		//for (auto& kk : p.preprocMap)
 		//{
@@ -172,11 +171,11 @@ int linear_main_3pc_sh(int N, int Dim, int B, int IT, int testN, int pIdx, bool 
 
 int linear_main_3pc_sh(oc::CLP& cmd)
 {
-	auto N = cmd.getManyOr<int>("N", { 10000 });
-	auto D = cmd.getManyOr<int>("D", { 1000 });
-	auto B = cmd.getManyOr<int>("B", { 128 });
-	auto IT = cmd.getManyOr<int>("I", { 10000 });
-	auto testN = cmd.getOr("testN", 1000);
+	auto N = cmd.getManyOr<int>("N", { 100 });
+	auto D = cmd.getManyOr<int>("D", { 20 });
+	auto B = cmd.getManyOr<int>("B", { 8 });
+	auto IT = cmd.getManyOr<int>("I", { 1000 });
+	auto testN = cmd.getOr("testN", 100);
 
 	IOService ios(cmd.isSet("p") ? 3 : 7);
 	std::vector<std::thread> thrds;
