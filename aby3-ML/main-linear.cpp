@@ -94,7 +94,7 @@ int linear_main_3pc_sh(int N, int Dim, int B, int IT, int testN, int pIdx, bool 
 	std::chrono::time_point<std::chrono::system_clock>
 		preStop,
 		preStart = std::chrono::system_clock::now();
-    p.multiplicationTriples<D>(B, Dim, Dim, 1, IT);
+    p.multiplicationTriples(B, Dim, Dim, 1, IT);
 	auto aa = std::async([&]() {
 
 		if (cmd.isSet("noOffline") == false)

@@ -154,14 +154,16 @@ void SGD_Linear(
 
 		// compute the errors on the current batch.
 		Matrix error = engine.mul(XX, w);
-		error -= YY;
+        //bool v = engine.verify(XX, w, error);
+        //if (!v) {
+        //    std::cout << "OH NO!!!" << std::endl;
+        //}
+        error -= YY;
+
 
 		DEBUG_PRINT(engine << "E[" << i << "] " << engine.reveal(error) << std::endl);
 
-        bool v = engine.verify(XX, w, error);
-        if (!v) {
-            std::cout << "OH NO!!!" << std::endl;
-        }
+
 		// compute XX = XX^T
 		XX.transposeInPlace();
 

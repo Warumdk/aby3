@@ -2,19 +2,17 @@
 #include <cryptoTools/Crypto/PRNG.h>
 #include <iomanip>
 #include <cryptoTools/Common/Log.h>
+
 using namespace oc;
-namespace aby3
-{
-    void Sh3Evaluator::init(u64 partyIdx, block prevSeed, block nextSeed, u64 buffSize)
-    {
+namespace aby3 {
+    void Sh3Evaluator::init(u64 partyIdx, block prevSeed, block nextSeed, u64 buffSize) {
         mShareGen.init(prevSeed, nextSeed, buffSize);
         mPartyIdx = partyIdx;
         mOtPrev.setSeed(mShareGen.mNextCommon.get<block>());
         mOtNext.setSeed(mShareGen.mPrevCommon.get<block>());
     }
 
-    void Sh3Evaluator::init(u64 partyIdx, CommPkg& comm, block seed, u64 buffSize)
-    {
+    void Sh3Evaluator::init(u64 partyIdx, CommPkg &comm, block seed, u64 buffSize) {
         mShareGen.init(comm, seed, buffSize);
         mPartyIdx = partyIdx;
         mOtPrev.setSeed(mShareGen.mNextCommon.get<block>());
@@ -68,49 +66,44 @@ namespace aby3
     //}
 
 
-    Sh3Task Sh3Evaluator::asyncMul(Sh3Task dependency, const si64& A, const si64& B, si64& C)
-    {
-        return dependency.then([&](CommPkg& comm, Sh3Task self)
-            {
-                C[0]
+    Sh3Task Sh3Evaluator::asyncMul(Sh3Task dependency, const si64 &A, const si64 &B, si64 &C) {
+        return dependency.then([&](CommPkg &comm, Sh3Task self) {
+            C[0]
                     = A[0] * B[0]
-                    + A[0] * B[1]
-                    + A[1] * B[0]
-                    + mShareGen.getShare();
+                      + A[0] * B[1]
+                      + A[1] * B[0]
+                      + mShareGen.getShare();
 
-                comm.mNext.asyncSendCopy(C[0]);
-                auto fu = comm.mPrev.asyncRecv(C[1]).share();
+            comm.mNext.asyncSendCopy(C[0]);
+            auto fu = comm.mPrev.asyncRecv(C[1]).share();
 
-                self.then([fu = std::move(fu)](CommPkg& comm, Sh3Task& self){
-                    fu.get();
-                });
-            }).getClosure();
+            self.then([fu = std::move(fu)](CommPkg &comm, Sh3Task &self) {
+                fu.get();
+            });
+        }).getClosure();
     }
 
 
-    Sh3Task Sh3Evaluator::asyncMul(Sh3Task dependency, const si64Matrix& A, const si64Matrix& B, si64Matrix& C)
-    {
-        return dependency.then([&](CommPkg& comm, Sh3Task self)
-            {
-                C.mShares[0]
+    Sh3Task Sh3Evaluator::asyncMul(Sh3Task dependency, const si64Matrix &A, const si64Matrix &B, si64Matrix &C) {
+        return dependency.then([&](CommPkg &comm, Sh3Task self) {
+            C.mShares[0]
                     = A.mShares[0] * B.mShares[0]
-                    + A.mShares[0] * B.mShares[1]
-                    + A.mShares[1] * B.mShares[0];
+                      + A.mShares[0] * B.mShares[1]
+                      + A.mShares[1] * B.mShares[0];
 
-                for (u64 i = 0; i < C.size(); ++i)
-                {
-                    C.mShares[0](i) += mShareGen.getShare();
-                }
+            for (u64 i = 0; i < C.size(); ++i) {
+                C.mShares[0](i) += mShareGen.getShare();
+            }
 
-                C.mShares[1].resizeLike(C.mShares[0]);
+            C.mShares[1].resizeLike(C.mShares[0]);
 
-                comm.mNext.asyncSendCopy(C.mShares[0].data(), C.mShares[0].size());
-                auto fu = comm.mPrev.asyncRecv(C.mShares[1].data(), C.mShares[1].size()).share();
+            comm.mNext.asyncSendCopy(C.mShares[0].data(), C.mShares[0].size());
+            auto fu = comm.mPrev.asyncRecv(C.mShares[1].data(), C.mShares[1].size()).share();
 
-                self.then([fu = std::move(fu)](CommPkg& comm, Sh3Task& self){
-                    fu.get();
-                });
-            }).getClosure();
+            self.then([fu = std::move(fu)](CommPkg &comm, Sh3Task &self) {
+                fu.get();
+            });
+        }).getClosure();
     }
 
     //std::string prettyShare(int partyIdx, i64 v0, i64 v1 = -1, i64 v2 = -1)
@@ -135,250 +128,231 @@ namespace aby3
 
 
     Sh3Task Sh3Evaluator::asyncMul(
-        Sh3Task dep,
-        const si64Matrix& a,
-        const sbMatrix& b,
-        si64Matrix& c)
-    {
-        return dep.then([&](CommPkg& comm, Sh3Task self) {
-            switch (mPartyIdx)
-            {
-            case 0:
-            {
-                std::vector<std::array<i64, 2>> s0(a.size());
-                BitVector c1(a.size());
-                for (u64 i = 0; i < s0.size(); ++i)
-                {
-                    auto bb = b.mShares[0](i) ^ b.mShares[1](i);
-                    //if (bb < 0 || bb > 1)
-                    //	throw std::runtime_error(LOCATION);
+            Sh3Task dep,
+            const si64Matrix &a,
+            const sbMatrix &b,
+            si64Matrix &c) {
+        return dep.then([&](CommPkg &comm, Sh3Task self) {
+                            switch (mPartyIdx) {
+                                case 0: {
+                                    std::vector<std::array<i64, 2>> s0(a.size());
+                                    BitVector c1(a.size());
+                                    for (u64 i = 0; i < s0.size(); ++i) {
+                                        auto bb = b.mShares[0](i) ^b.mShares[1](i);
+                                        //if (bb < 0 || bb > 1)
+                                        //	throw std::runtime_error(LOCATION);
 
-                    auto zeroShare = mShareGen.getShare();
+                                        auto zeroShare = mShareGen.getShare();
 
-                    s0[i][bb] = zeroShare;
-                    s0[i][bb ^ 1] = a.mShares[1](i) + zeroShare;
+                                        s0[i][bb] = zeroShare;
+                                        s0[i][bb ^ 1] = a.mShares[1](i) + zeroShare;
 
-                    //std::cout << "b=(" << b.mShares[0](i) << ",  , " << b.mShares[1](i) << ")" << std::endl;
-                    //std::cout << "s0[" << i << "] = " << bb * a.mShares[1](i) << std::endl;
+                                        //std::cout << "b=(" << b.mShares[0](i) << ",  , " << b.mShares[1](i) << ")" << std::endl;
+                                        //std::cout << "s0[" << i << "] = " << bb * a.mShares[1](i) << std::endl;
 
-                    c1[i] = static_cast<u8>(b.mShares[1](i));
-                }
+                                        c1[i] = static_cast<u8>(b.mShares[1](i));
+                                    }
 
 
-                //std::cout << "p0 " << s0[0][0] << " "<< s0[0][1] << " "<< c1 << std::endl;
-                // share 0: from p0 to p1,p2
-                mOtNext.send(comm.mNext, s0);
-                mOtPrev.send(comm.mPrev, s0);
+                                    //std::cout << "p0 " << s0[0][0] << " "<< s0[0][1] << " "<< c1 << std::endl;
+                                    // share 0: from p0 to p1,p2
+                                    mOtNext.send(comm.mNext, s0);
+                                    mOtPrev.send(comm.mPrev, s0);
 
-                // share 1: from p1 to p0,p2 
-                mOtPrev.help(comm.mPrev, c1);
-
-
-
-                auto fu1 = comm.mPrev.asyncRecv(c.mShares[0].data(), c.size()).share();
-                i64* dd = c.mShares[1].data();
-                auto fu2 = SharedOT::asyncRecv(comm.mNext, comm.mPrev, std::move(c1), { dd, i64(c.size()) }).share();
-
-                self.then([
-                    fu1 = std::move(fu1),
-                        fu2 = std::move(fu2)]
-                        (CommPkg& comm, Sh3Task self) mutable {
-                        fu1.get();
-                        fu2.get();
-                    });
-                break;
-            }
-            case 1:
-            {
-                std::vector<std::array<i64, 2>> s1(a.size());
-                BitVector c0(a.size());
-                for (u64 i = 0; i < s1.size(); ++i)
-                {
-                    auto bb = b.mShares[0](i) ^ b.mShares[1](i);
-                    //if (bb < 0 || bb > 1)
-                    //	throw std::runtime_error(LOCATION);
-                    auto ss = mShareGen.getShare();
-
-                    s1[i][bb] = ss;
-                    s1[i][bb ^ 1] = (a.mShares[0](i) + a.mShares[1](i)) + ss;
-
-                    //std::cout << "b=(   ," << b.mShares[0](i) << ",   )" << "  " << (a.mShares[0](i) + a.mShares[1](i)) << std::endl;
-                    //std::cout << "s1[" << i << "] = " << bb * (a.mShares[0](i) + a.mShares[1](i)) << " = b *  (" <<a.mShares[0](i) <<" +  "<<a.mShares[1](i) <<")" << std::endl;
-
-                    c0[i] = static_cast<u8>(b.mShares[0](i));
-                }
-
-                //std::cout << "p1 " << s1[0][0] << " " << s1[0][1] << " " << c0 << std::endl;
+                                    // share 1: from p1 to p0,p2
+                                    mOtPrev.help(comm.mPrev, c1);
 
 
-                // share 0: from p0 to p1,p2
-                mOtNext.help(comm.mNext, c0);
+                                    auto fu1 = comm.mPrev.asyncRecv(c.mShares[0].data(), c.size()).share();
+                                    i64 *dd = c.mShares[1].data();
+                                    auto fu2 = SharedOT::asyncRecv(comm.mNext, comm.mPrev, std::move(c1), {dd, i64(c.size())}).share();
 
-                // share 1: from p1 to p0,p2 
-                mOtNext.send(comm.mNext, s1);
-                mOtPrev.send(comm.mPrev, s1);
+                                    self.then([
+                                                      fu1 = std::move(fu1),
+                                                      fu2 = std::move(fu2)]
+                                                      (CommPkg &comm, Sh3Task self) mutable {
+                                        fu1.get();
+                                        fu2.get();
+                                    });
+                                    break;
+                                }
+                                case 1: {
+                                    std::vector<std::array<i64, 2>> s1(a.size());
+                                    BitVector c0(a.size());
+                                    for (u64 i = 0; i < s1.size(); ++i) {
+                                        auto bb = b.mShares[0](i) ^b.mShares[1](i);
+                                        //if (bb < 0 || bb > 1)
+                                        //	throw std::runtime_error(LOCATION);
+                                        auto ss = mShareGen.getShare();
 
+                                        s1[i][bb] = ss;
+                                        s1[i][bb ^ 1] = (a.mShares[0](i) + a.mShares[1](i)) + ss;
 
-                // share 0: from p0 to p1,p2
-                i64* dd = c.mShares[0].data();
-                auto fu1 = SharedOT::asyncRecv(comm.mPrev, comm.mNext, std::move(c0), { dd, i64(c.size()) }).share();
+                                        //std::cout << "b=(   ," << b.mShares[0](i) << ",   )" << "  " << (a.mShares[0](i) + a.mShares[1](i)) << std::endl;
+                                        //std::cout << "s1[" << i << "] = " << bb * (a.mShares[0](i) + a.mShares[1](i)) << " = b *  (" <<a.mShares[0](i) <<" +  "<<a.mShares[1](i) <<")" << std::endl;
 
-                // share 1:
-                auto fu2 = comm.mNext.asyncRecv(c.mShares[1].data(), c.size()).share();
+                                        c0[i] = static_cast<u8>(b.mShares[0](i));
+                                    }
 
-                self.then([
-                    fu1 = std::move(fu1),
-                        fu2 = std::move(fu2),
-                        &c,
-                        _2 = std::move(c0)]
-                        (CommPkg& comm, Sh3Task self) mutable {
-                        fu1.get();
-                        fu2.get();
-                        //std::cout << "P1.get() " << c.mShares[0](0) << " " << c.mShares[1](0) << std::endl;
-                    });
-
-                break;
-            }
-            case 2:
-            {
-                BitVector c0(a.size()), c1(a.size());
-                std::vector<i64> s0(a.size()), s1(a.size());
-                for (u64 i = 0; i < a.size(); ++i)
-                {
-                    c0[i] = static_cast<u8>(b.mShares[1](i));
-                    c1[i] = static_cast<u8>(b.mShares[0](i));
-
-                    s0[i] = s1[i] = mShareGen.getShare();
-                }
-
-                //std::cout << "p0 " << s0[0] << " " << c0 << " " << c1 << std::endl;
+                                    //std::cout << "p1 " << s1[0][0] << " " << s1[0][1] << " " << c0 << std::endl;
 
 
-                // share 0: from p0 to p1,p2
-                mOtPrev.help(comm.mPrev, c0);
-                comm.mNext.asyncSend(std::move(s0));
+                                    // share 0: from p0 to p1,p2
+                                    mOtNext.help(comm.mNext, c0);
 
-                // share 1: from p1 to p0,p2 
-                mOtNext.help(comm.mNext, c1);
-                comm.mPrev.asyncSend(std::move(s1));
+                                    // share 1: from p1 to p0,p2
+                                    mOtNext.send(comm.mNext, s1);
+                                    mOtPrev.send(comm.mPrev, s1);
 
-                // share 0: from p0 to p1,p2
-                i64* dd0 = c.mShares[1].data();
-                auto fu1 = SharedOT::asyncRecv(comm.mNext, comm.mPrev, std::move(c0), { dd0, i64(c.size()) }).share();
 
-                // share 1: from p1 to p0,p2
-                i64* dd1 = c.mShares[0].data();
-                auto fu2 = SharedOT::asyncRecv(comm.mPrev, comm.mNext, std::move(c1), { dd1, i64(c.size()) }).share();
+                                    // share 0: from p0 to p1,p2
+                                    i64 *dd = c.mShares[0].data();
+                                    auto fu1 = SharedOT::asyncRecv(comm.mPrev, comm.mNext, std::move(c0), {dd, i64(c.size())}).share();
 
-                self.then([
-                    fu1 = std::move(fu1),
-                        fu2 = std::move(fu2),
-                        &c]
-                        (CommPkg& comm, Sh3Task self) mutable {
-                        fu1.get();
-                        fu2.get();
-                        //std::cout << "P1.get() " << c.mShares[0](0) << " " << c.mShares[1](0) << std::endl;
-                    });
-                break;
-            }
-            default:
-                throw std::runtime_error(LOCATION);
-            }
-            }
+                                    // share 1:
+                                    auto fu2 = comm.mNext.asyncRecv(c.mShares[1].data(), c.size()).share();
+
+                                    self.then([
+                                                      fu1 = std::move(fu1),
+                                                      fu2 = std::move(fu2),
+                                                      &c,
+                                                      _2 = std::move(c0)]
+                                                      (CommPkg &comm, Sh3Task self) mutable {
+                                        fu1.get();
+                                        fu2.get();
+                                        //std::cout << "P1.get() " << c.mShares[0](0) << " " << c.mShares[1](0) << std::endl;
+                                    });
+
+                                    break;
+                                }
+                                case 2: {
+                                    BitVector c0(a.size()), c1(a.size());
+                                    std::vector<i64> s0(a.size()), s1(a.size());
+                                    for (u64 i = 0; i < a.size(); ++i) {
+                                        c0[i] = static_cast<u8>(b.mShares[1](i));
+                                        c1[i] = static_cast<u8>(b.mShares[0](i));
+
+                                        s0[i] = s1[i] = mShareGen.getShare();
+                                    }
+
+                                    //std::cout << "p0 " << s0[0] << " " << c0 << " " << c1 << std::endl;
+
+
+                                    // share 0: from p0 to p1,p2
+                                    mOtPrev.help(comm.mPrev, c0);
+                                    comm.mNext.asyncSend(std::move(s0));
+
+                                    // share 1: from p1 to p0,p2
+                                    mOtNext.help(comm.mNext, c1);
+                                    comm.mPrev.asyncSend(std::move(s1));
+
+                                    // share 0: from p0 to p1,p2
+                                    i64 *dd0 = c.mShares[1].data();
+                                    auto fu1 = SharedOT::asyncRecv(comm.mNext, comm.mPrev, std::move(c0), {dd0, i64(c.size())}).share();
+
+                                    // share 1: from p1 to p0,p2
+                                    i64 *dd1 = c.mShares[0].data();
+                                    auto fu2 = SharedOT::asyncRecv(comm.mPrev, comm.mNext, std::move(c1), {dd1, i64(c.size())}).share();
+
+                                    self.then([
+                                                      fu1 = std::move(fu1),
+                                                      fu2 = std::move(fu2),
+                                                      &c]
+                                                      (CommPkg &comm, Sh3Task self) mutable {
+                                        fu1.get();
+                                        fu2.get();
+                                        //std::cout << "P1.get() " << c.mShares[0](0) << " " << c.mShares[1](0) << std::endl;
+                                    });
+                                    break;
+                                }
+                                default:
+                                    throw std::runtime_error(LOCATION);
+                            }
+                        }
         ).getClosure();
     }
 
 
     Sh3Task Sh3Evaluator::asyncMul(
-        Sh3Task dep,
-        const i64& a,
-        const sbMatrix& b,
-        si64Matrix& c)
-    {
-        return dep.then([&](CommPkg& comm, Sh3Task self) {
-            if (b.bitCount() != 1)
-                throw RTE_LOC;
+            Sh3Task dep,
+            const i64 &a,
+            const sbMatrix &b,
+            si64Matrix &c) {
+        return dep.then([&](CommPkg &comm, Sh3Task self) {
+                            if (b.bitCount() != 1)
+                                throw RTE_LOC;
 
-            switch (mPartyIdx)
-            {
-            case 0:
-            {
-                std::vector<std::array<i64, 2>> s0(b.rows());
-                for (u64 i = 0; i < s0.size(); ++i)
-                {
-                    auto bb = b.mShares[0](i) ^ b.mShares[1](i);
-                    auto zeroShare = mShareGen.getShare();
+                            switch (mPartyIdx) {
+                                case 0: {
+                                    std::vector<std::array<i64, 2>> s0(b.rows());
+                                    for (u64 i = 0; i < s0.size(); ++i) {
+                                        auto bb = b.mShares[0](i) ^b.mShares[1](i);
+                                        auto zeroShare = mShareGen.getShare();
 
-                    s0[i][bb] = zeroShare;
-                    s0[i][bb ^ 1] = a + zeroShare;
-                }
+                                        s0[i][bb] = zeroShare;
+                                        s0[i][bb ^ 1] = a + zeroShare;
+                                    }
 
-                // share 0: from p0 to p1,p2
-                mOtNext.send(comm.mNext, s0);
-                mOtPrev.send(comm.mPrev, s0);
+                                    // share 0: from p0 to p1,p2
+                                    mOtNext.send(comm.mNext, s0);
+                                    mOtPrev.send(comm.mPrev, s0);
 
-                auto fu1 = comm.mNext.asyncRecv(c.mShares[0].data(), c.size()).share();
-                auto fu2 = comm.mPrev.asyncRecv(c.mShares[1].data(), c.size()).share();
-                self.then([fu1 = std::move(fu1), fu2 = std::move(fu2)](CommPkg& _, Sh3Task __) mutable {
-                    fu1.get();
-                    fu2.get();
-                });
-                break;
-            }
-            case 1:
-            {
-                BitVector c0(b.rows());
-                for (u64 i = 0; i < b.rows(); ++i)
-                {
-                    c.mShares[1](i) = mShareGen.getShare();
-                    c0[i] = static_cast<u8>(b.mShares[0](i));
-                }
+                                    auto fu1 = comm.mNext.asyncRecv(c.mShares[0].data(), c.size()).share();
+                                    auto fu2 = comm.mPrev.asyncRecv(c.mShares[1].data(), c.size()).share();
+                                    self.then([fu1 = std::move(fu1), fu2 = std::move(fu2)](CommPkg &_, Sh3Task __) mutable {
+                                        fu1.get();
+                                        fu2.get();
+                                    });
+                                    break;
+                                }
+                                case 1: {
+                                    BitVector c0(b.rows());
+                                    for (u64 i = 0; i < b.rows(); ++i) {
+                                        c.mShares[1](i) = mShareGen.getShare();
+                                        c0[i] = static_cast<u8>(b.mShares[0](i));
+                                    }
 
-                // share 0: from p0 to p1,p2
-                mOtNext.help(comm.mNext, c0);
-                comm.mPrev.asyncSendCopy(c.mShares[1].data(), c.size());
+                                    // share 0: from p0 to p1,p2
+                                    mOtNext.help(comm.mNext, c0);
+                                    comm.mPrev.asyncSendCopy(c.mShares[1].data(), c.size());
 
-                i64* dd = c.mShares[0].data();
-                auto fu1 = SharedOT::asyncRecv(comm.mPrev, comm.mNext, std::move(c0), { dd, i64(c.size()) }).share();
-                self.then([fu1 = std::move(fu1)](CommPkg& _, Sh3Task __) mutable {
-                    fu1.get();
-                });
+                                    i64 *dd = c.mShares[0].data();
+                                    auto fu1 = SharedOT::asyncRecv(comm.mPrev, comm.mNext, std::move(c0), {dd, i64(c.size())}).share();
+                                    self.then([fu1 = std::move(fu1)](CommPkg &_, Sh3Task __) mutable {
+                                        fu1.get();
+                                    });
 
-                break;
-            }
-            case 2:
-            {
-                BitVector c0(b.rows());
-                for (u64 i = 0; i < b.rows(); ++i)
-                {
-                    c.mShares[0](i) = mShareGen.getShare();
-                    c0[i] = static_cast<u8>(b.mShares[1](i));
-                }
+                                    break;
+                                }
+                                case 2: {
+                                    BitVector c0(b.rows());
+                                    for (u64 i = 0; i < b.rows(); ++i) {
+                                        c.mShares[0](i) = mShareGen.getShare();
+                                        c0[i] = static_cast<u8>(b.mShares[1](i));
+                                    }
 
-                // share 0: from p0 to p1,p2
-                mOtPrev.help(comm.mPrev, c0);
-                comm.mNext.asyncSendCopy(c.mShares[0].data(), c.size());
+                                    // share 0: from p0 to p1,p2
+                                    mOtPrev.help(comm.mPrev, c0);
+                                    comm.mNext.asyncSendCopy(c.mShares[0].data(), c.size());
 
-                i64* dd0 = c.mShares[1].data();
-                auto fu1 = SharedOT::asyncRecv(comm.mNext, comm.mPrev, std::move(c0), { dd0, i64(c.size()) }).share();
+                                    i64 *dd0 = c.mShares[1].data();
+                                    auto fu1 = SharedOT::asyncRecv(comm.mNext, comm.mPrev, std::move(c0), {dd0, i64(c.size())}).share();
 
-                self.then([fu1 = std::move(fu1)](CommPkg& _, Sh3Task __) mutable {
-                    fu1.get();
-                });
-                break;
-            }
-            default:
-                throw std::runtime_error(LOCATION);
-            }
-            }
+                                    self.then([fu1 = std::move(fu1)](CommPkg &_, Sh3Task __) mutable {
+                                        fu1.get();
+                                    });
+                                    break;
+                                }
+                                default:
+                                    throw std::runtime_error(LOCATION);
+                            }
+                        }
         ).getClosure();
     }
 
-    TruncationPair Sh3Evaluator::getTruncationTuple(u64 xSize, u64 ySize, u64 d)
-    {
+    TruncationPair Sh3Evaluator::getTruncationTuple(u64 xSize, u64 ySize, u64 d) {
         TruncationPair pair;
-        if (DEBUG_disable_randomization)
-        {
+        if (DEBUG_disable_randomization) {
             pair.mR.resize(xSize, ySize);
             pair.mR.setZero();
 
@@ -387,9 +361,7 @@ namespace aby3
             pair.mRTrunc.mShares[0].setZero();
             pair.mRTrunc.mShares[1].setZero();
 
-        }
-        else
-        {
+        } else {
             const auto d2 = d + 2;
             pair.mR.resize(xSize, ySize);
             pair.mRTrunc.resize(xSize, ySize);
@@ -399,11 +371,10 @@ namespace aby3
                 //mShareGen.mPrevCommon.get(pair.mR.data(), pair.mR.size());
                 mShareGen.mNextCommon.get(pair.mRTrunc[0].data(), pair.mRTrunc[0].size());
                 mShareGen.mPrevCommon.get(pair.mRTrunc[1].data(), pair.mRTrunc[1].size());
-                for (u64 i = 0; i < pair.mR.size(); ++i)
-                {
-                    auto& t0 = pair.mRTrunc[0](i);
-                    auto& t1 = pair.mRTrunc[1](i);
-                    auto& r0 = pair.mR(i);
+                for (u64 i = 0; i < pair.mR.size(); ++i) {
+                    auto &t0 = pair.mRTrunc[0](i);
+                    auto &t1 = pair.mRTrunc[1](i);
+                    auto &r0 = pair.mR(i);
 
                     r0 = t0 >> 2;
                     t0 >>= d2;
@@ -440,25 +411,24 @@ namespace aby3
     }
 
     Sh3Task aby3::Sh3Evaluator::asyncMul(
-        Sh3Task  dependency,
-        const si64& A,
-        const si64& B,
-        si64& C,
-        u64 shift)
-    {
-        return dependency.then([&, shift](CommPkg& comm, Sh3Task& self) -> void {
+            Sh3Task dependency,
+            const si64 &A,
+            const si64 &B,
+            si64 &C,
+            u64 shift) {
+        return dependency.then([&, shift](CommPkg &comm, Sh3Task &self) -> void {
 
             auto truncationTuple = getTruncationTuple(1, 1, shift);
 
             auto abMinusR
-                = A.mData[0] * B.mData[0]
-                + A.mData[0] * B.mData[1]
-                + A.mData[1] * B.mData[0];
+                    = A.mData[0] * B.mData[0]
+                      + A.mData[0] * B.mData[1]
+                      + A.mData[1] * B.mData[0];
             //+ mShareGen.getShare();
 
 
-        //oc::ostreamLock(std::cout) << "ab " << mPartyIdx << ": " << abMinusR << " - "<< truncationTuple.mR(0) << 
-        //	" = " << abMinusR - truncationTuple.mR(0) << std::endl;
+            //oc::ostreamLock(std::cout) << "ab " << mPartyIdx << ": " << abMinusR << " - "<< truncationTuple.mR(0) <<
+            //	" = " << abMinusR - truncationTuple.mR(0) << std::endl;
 
             abMinusR -= truncationTuple.mR(0);
             C = truncationTuple.mRTrunc(0);
@@ -480,7 +450,7 @@ namespace aby3
             //	oc::ostreamLock(std::cout) << "sss " << l << " " << s << " " << ls << " " << s - ls << std::endl;
             //}
 
-            auto& rt = self.getRuntime();
+            auto &rt = self.getRuntime();
 
             // reveal dependency.getRuntime().the value to party 0, 1
             auto next = (rt.mPartyIdx + 1) % 3;
@@ -488,8 +458,7 @@ namespace aby3
             if (next < 2) comm.mNext.asyncSendCopy(abMinusR);
             if (prev < 2) comm.mPrev.asyncSendCopy(abMinusR);
 
-            if (rt.mPartyIdx < 2)
-            {
+            if (rt.mPartyIdx < 2) {
                 // these will hold the three shares of r-xy
                 std::unique_ptr<std::array<i64, 3>> shares(new std::array<i64, 3>);
 
@@ -500,8 +469,7 @@ namespace aby3
 
                 // set the completion handle complete the computation
                 self.then([fu0, fu1, shares = std::move(shares), &C, shift, this]
-                (CommPkg& comm, Sh3Task self) mutable
-                {
+                                  (CommPkg &comm, Sh3Task self) mutable {
                     fu0.get();
                     fu1.get();
 
@@ -517,26 +485,24 @@ namespace aby3
                 });
             }
 
-            }).getClosure();
+        }).getClosure();
     }
 
 
-
     Sh3Task aby3::Sh3Evaluator::asyncMul(
-        Sh3Task dependency,
-        const si64Matrix& A,
-        const si64Matrix& B,
-        si64Matrix& C,
-        u64 shift)
-    {
-        return dependency.then([&, shift](CommPkg& comm, Sh3Task& self) -> void {
+            Sh3Task dependency,
+            const si64Matrix &A,
+            const si64Matrix &B,
+            si64Matrix &C,
+            u64 shift) {
+        return dependency.then([&, shift](CommPkg &comm, Sh3Task &self) -> void {
 
             //oc::lout << self.mRuntime->mPartyIdx << " mult Send" << std::endl;
 
             i64Matrix abMinusR
-                = A.mShares[0] * B.mShares[0]
-                + A.mShares[0] * B.mShares[1]
-                + A.mShares[1] * B.mShares[0];
+                    = A.mShares[0] * B.mShares[0]
+                      + A.mShares[0] * B.mShares[1]
+                      + A.mShares[1] * B.mShares[0];
 
             auto truncationTuple = getTruncationTuple(abMinusR.rows(), abMinusR.cols(), shift);
 
@@ -544,9 +510,9 @@ namespace aby3
             C.mShares = std::move(truncationTuple.mRTrunc.mShares);
 
             //lout << "p" << mPartyIdx << " ab \n" << abMinusR << std::endl;
-                //<< "p"<< mPartyIdx << " c \n" << C.mShares[0]<<",\n"<< C.mShares[1] << std::endl;
+            //<< "p"<< mPartyIdx << " c \n" << C.mShares[0]<<",\n"<< C.mShares[1] << std::endl;
 
-            auto& rt = self.getRuntime();
+            auto &rt = self.getRuntime();
 
             // reveal dependency.getRuntime().the value to party 0, 1
             auto next = (rt.mPartyIdx + 1) % 3;
@@ -554,8 +520,7 @@ namespace aby3
             if (next < 2) comm.mNext.asyncSendCopy(abMinusR.data(), abMinusR.size());
             if (prev < 2) comm.mPrev.asyncSendCopy(abMinusR.data(), abMinusR.size());
 
-            if (rt.mPartyIdx < 2)
-            {
+            if (rt.mPartyIdx < 2) {
                 // these will hold the three shares of r-xy
                 //std::unique_ptr<std::array<i64, 3>> shares(new std::array<i64, 3>);
                 auto shares = std::make_unique<std::array<i64Matrix, 3>>();
@@ -572,8 +537,7 @@ namespace aby3
 
                 // set the completion handle complete the computation
                 self.then([fu0, fu1, shares = std::move(shares), &C, shift, this]
-                (CommPkg& comm, Sh3Task self) mutable
-                {
+                                  (CommPkg &comm, Sh3Task self) mutable {
                     //oc::lout << self.mRuntime->mPartyIdx << " mult recv" << std::endl;
                     fu0.get();
                     fu1.get();
@@ -583,8 +547,8 @@ namespace aby3
                     (*shares)[0] += (*shares)[1] + (*shares)[2];
 
                     // xy/2^d = (r/2^d) + ((xy-r) / 2^d)
-                    auto& v = C.mShares[mPartyIdx];
-                    auto& s = (*shares)[0];
+                    auto &v = C.mShares[mPartyIdx];
+                    auto &s = (*shares)[0];
                     for (u64 i = 0; i < v.size(); ++i)
                         v(i) += s(i) >> shift;
 
@@ -597,7 +561,125 @@ namespace aby3
             //{
             //	lout << "p " << mPartyIdx << "\n" << C.mShares[0] << ",\n" << C.mShares[1] << std::endl;
             //}
-            }).getClosure();
+        }).getClosure();
     }
+
+    Sh3Task aby3::Sh3Evaluator::asyncMalMul(
+            Sh3Task dependency,
+            const si64Matrix &A,
+            const si64Matrix &B,
+            si64Matrix &C,
+            u64 shift,
+            std::array<si64Matrix, 3> &triple) {
+        return dependency.then([&, shift](CommPkg &comm, Sh3Task &self) -> void {
+            C.mShares[0]
+                    = A.mShares[0] * B.mShares[0]
+                      + A.mShares[0] * B.mShares[1]
+                      + A.mShares[1] * B.mShares[0];
+            for (u64 i = 0; i < C.size(); ++i) {
+                C.mShares[0](i) += mShareGen.getShare();
+            }
+            C.mShares[1].resizeLike(C.mShares[0]);
+            auto truncationTuple = getTruncationTuple(C.rows(), C.cols(), shift);
+            i64Matrix zMinusR = C.mShares[0] - truncationTuple.mR;
+            comm.mNext.asyncSendCopy(C.mShares[0].data(), C.mShares[0].size());
+            comm.mPrev.asyncRecv(C.mShares[1].data(), C.mShares[1].size()).get();
+
+            i64Matrix rZMinusR;
+            comm.mPrev.asyncSendCopy(zMinusR.data(), zMinusR.size());
+            comm.mNext.asyncRecv(rZMinusR.data(), rZMinusR.size()).get();
+            std::array<si64Matrix, 3> in = {A, B, C};
+            if (mPartyIdx == 0) {
+                std::cout << A.rows() << " " << A.cols() << " " << B.rows() << " " << B.cols() << " " << C.rows() << " "
+                          << C.cols() << std::endl;
+                std::cout << triple[0].rows() << " " << triple[0].cols() << " " << triple[1].rows() << " "
+                          << triple[1].cols() << " " << triple[2].rows() << " " << triple[2].cols() << std::endl;
+            }
+            if (!this->verifyTripleUsingAnother(comm, in, triple)) {
+                std::cout << "WTF!!!" << std::endl;
+            } else {
+                // Compareview C.mShares[1].data()-truncationTuple.mR == next.zMinusR.data()
+
+                //Reconstruct
+                // (z' - r) = C.mShares[0] - trunc. + C.mShares[1] - trunc. + zMinusR
+                i64Matrix zPrimeMinusR = (C.mShares[0] - truncationTuple.mR) + (C.mShares[1] - truncationTuple.mR) + rZMinusR;
+                for (int i = 0; i < zPrimeMinusR.size(); ++i){
+                    C(i)[0] = truncationTuple.mRTrunc(i)[0] + (zPrimeMinusR(i) >> shift);
+                }
+                std::cout << "FUCK YEA" << std::endl;
+            }
+        }).getClosure();
+    }
+
+
+bool aby3::Sh3Evaluator::verifyTripleUsingAnother(CommPkg &comm, const std::array<si64Matrix, 3> &xyz,
+                                                  const std::array<si64Matrix, 3> &abc) {
+    si64Matrix sRho = xyz[0] - abc[0];
+    si64Matrix sSigma = xyz[1] - abc[1];
+    i64Matrix rho = i64Matrix(abc[0].rows(), abc[0].cols());
+    i64Matrix sigma = i64Matrix(abc[1].rows(), abc[1].cols());
+    this->revealAll(comm, sRho, rho);
+    this->revealAll(comm, sSigma, sigma);
+
+    if (!compareView(comm, rho)) {
+        return false;
+    }
+
+    if (!compareView(comm, sigma)) {
+        return false;
+    }
+
+    si64Matrix sDelta = (xyz[2] - abc[2]) - (abc[0] * sigma) - (rho * abc[1]) - (rho * sigma);
+
+    i64Matrix delta = i64Matrix(sDelta.rows(), sDelta.cols());
+    this->revealAll(comm, sDelta, delta);
+
+    if (delta != i64Matrix::Zero(delta.rows(), delta.cols())) {
+        if (mPartyIdx == 0) {
+            std::stringstream msg;
+            msg << mPartyIdx << std::endl << rho << std::endl << sigma << std::endl << delta << std::endl;
+            std::cout << msg.str();
+        }
+        comm.mPrev.cancel();
+        comm.mNext.cancel();
+        return false;
+    }
+
+    return this->compareView(comm, delta);
+}
+
+bool aby3::Sh3Evaluator::compareView(CommPkg &comm, i64Matrix &x) {
+    comm.mNext.asyncSendCopy(x.data(), x.size());
+
+    i64Matrix xPrev = i64Matrix(x.rows(), x.cols());
+    comm.mPrev.recv(xPrev.data(), xPrev.size());
+
+    if (x != xPrev) {
+        comm.mPrev.cancel();
+        comm.mNext.cancel();
+        return false;
+    }
+    return true;
+}
+
+void aby3::Sh3Evaluator::reveal(CommPkg &comm, const si64Matrix &x, i64Matrix &dest) {
+    if (dest.rows() != static_cast<i64>(x.rows()) || dest.cols() != static_cast<i64>(x.cols()))
+        throw std::runtime_error(LOCATION);
+
+    comm.mNext.recv(dest.data(), dest.size());
+    for (i64 i = 0; i < dest.size(); ++i) {
+        dest(i) += x.mShares[0](i) + x.mShares[1](i);
+    }
+}
+
+void aby3::Sh3Evaluator::revealAll(CommPkg &comm, const si64Matrix &x, i64Matrix &dest) {
+    reveal(comm, (mPartyIdx + 2) % 3, x);
+    reveal(comm, x, dest);
+}
+
+void aby3::Sh3Evaluator::reveal(CommPkg &comm, u64 partyIdx, const si64Matrix &x) {
+    if ((mPartyIdx + 2) % 3 == partyIdx)
+        comm.mPrev.asyncSendCopy(x.mShares[0].data(), x.mShares[0].size());
+}
 
 }

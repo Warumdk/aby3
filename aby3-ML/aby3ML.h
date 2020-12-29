@@ -17,7 +17,7 @@ namespace aby3
 		Sh3Encryptor mEnc;
 		Sh3Evaluator mEval;
 		Sh3Verifier mVerify;
-        std::vector<std::array<sf64Matrix<D16>, 3>> mTriples;
+        std::vector<std::array<si64Matrix, 3>> mTriples;
 
 		Sh3Runtime mRt;
 		bool mPrint = true;
@@ -27,19 +27,20 @@ namespace aby3
 			return mRt.mPartyIdx;
 		}
 
-        template<Decimal D>
 		void multiplicationTriples(int rowsA, int colsA, int rowsB, int colsB, int N){
 		    CommPkg c{mPreproPrev, mPreproNext};
-            std::vector<std::array<sf64Matrix<D>, 3>>  newTriples = mVerify.generateTriples<D>(c, N, 10, 10, 2, 2, 2, 2);//rowsA, colsA, rowsB, colsB);
+            std::vector<std::array<si64Matrix , 3>>  newTriples = mVerify.generateTriples(c, N, 10, 10, 8, colsA, rowsB, colsB);
             mTriples.insert(mTriples.end(), newTriples.begin(), newTriples.end());
 		}
 
         template<Decimal D>
 		bool verify(sf64Matrix<D> A, sf64Matrix<D> B, sf64Matrix<D> C) {
-		    std::array<sf64Matrix<D>, 3> triple = {A, B, C};
+		    std::array<si64Matrix, 3> triple = {A.i64Cast(), B.i64Cast(), C.i64Cast()};
             CommPkg c{mPreproPrev, mPreproNext};
-            std::cout << "Wait wat" << std::endl;
-            bool res = mVerify.verifyTripleUsingAnother<D>(c, triple, mTriples.back());
+            if (mTriples.empty()) {
+                std::cout << "Wait wat" << std::endl;
+            }
+            bool res = mVerify.verifyTripleUsingAnother(c, triple, mTriples.back());
             mTriples.pop_back();
             return res;
 		}
@@ -124,6 +125,9 @@ namespace aby3
 		sf64Matrix<D> mul(const sf64Matrix<D>& left, const sf64Matrix<D>& right)
 		{
 			sf64Matrix<D> dest;
+			sf64Matrix<D> derp;
+			std::cout << "wat1" << std::endl;
+			mEval.asyncMalMul(mRt.noDependencies(), left, right, derp, mTriples.back()).get();
 			mEval.asyncMul(mRt.noDependencies(), left, right, dest).get();
 			return dest;
 		}
