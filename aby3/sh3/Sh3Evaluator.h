@@ -12,6 +12,8 @@ namespace aby3 {
         // the share that should be added before the value being trucnated is revealed.
         i64Matrix mR;
 
+        si64Matrix mRPrime;
+
         // the share that thsould be subtracted after the value has been truncated.
         si64Matrix mRTrunc;
     };
@@ -136,6 +138,7 @@ namespace aby3 {
                 si64Matrix &C);
 
         bool compareView(CommPkg &comm, i64Matrix &x);
+        bool compareView(CommPkg &comm, i64Matrix &x, i64Matrix &y);
         bool verifyTripleUsingAnother(CommPkg &comm, const std::array<si64Matrix, 3> &xyz,
         const std::array<si64Matrix, 3> &abc);
         void reveal(CommPkg & comm, const si64Matrix & x, i64Matrix & dest);

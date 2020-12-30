@@ -365,6 +365,7 @@ namespace aby3 {
             const auto d2 = d + 2;
             pair.mR.resize(xSize, ySize);
             pair.mRTrunc.resize(xSize, ySize);
+            pair.mRPrime.resize(xSize, ySize);
             const u64 mask = (~0ull) >> 1;
             //if (mPartyIdx == 0)
             {
@@ -375,8 +376,12 @@ namespace aby3 {
                     auto &t0 = pair.mRTrunc[0](i);
                     auto &t1 = pair.mRTrunc[1](i);
                     auto &r0 = pair.mR(i);
+                    auto &rp0 = pair.mRPrime[0](i);
+                    auto &rp1 = pair.mRPrime[1](i);
 
                     r0 = t0 >> 2;
+                    rp0 = r0;
+                    rp1 = t1 >> 2;
                     t0 >>= d2;
                     t1 >>= d2;
                 }
@@ -572,23 +577,34 @@ namespace aby3 {
             u64 shift,
             std::array<si64Matrix, 3> &triple) {
         return dependency.then([&, shift](CommPkg &comm, Sh3Task &self) -> void {
-            C.mShares[0]
+            si64Matrix z(C.rows(), C.cols());
+            z.mShares[0]
                     = A.mShares[0] * B.mShares[0]
                       + A.mShares[0] * B.mShares[1]
                       + A.mShares[1] * B.mShares[0];
             for (u64 i = 0; i < C.size(); ++i) {
-                C.mShares[0](i) += mShareGen.getShare();
+                z.mShares[0](i) += mShareGen.getShare();
             }
-            C.mShares[1].resizeLike(C.mShares[0]);
-            auto truncationTuple = getTruncationTuple(C.rows(), C.cols(), shift);
-            i64Matrix zMinusR = C.mShares[0] - truncationTuple.mR;
-            comm.mNext.asyncSendCopy(C.mShares[0].data(), C.mShares[0].size());
-            comm.mPrev.asyncRecv(C.mShares[1].data(), C.mShares[1].size()).get();
+            auto truncationTuple = getTruncationTuple(z.rows(), z.cols(), shift);
+            C.mShares = std::move(truncationTuple.mRTrunc.mShares);
 
-            i64Matrix rZMinusR;
+            z.mShares[1].resizeLike(z.mShares[0]);
+            comm.mNext.asyncSendCopy(z.mShares[0].data(), z.mShares[0].size());
+            comm.mPrev.asyncRecv(z.mShares[1].data(), z.mShares[1].size()).get();
+
+            i64Matrix zMinusR = z.mShares[0] - truncationTuple.mRPrime[0];
             comm.mPrev.asyncSendCopy(zMinusR.data(), zMinusR.size());
-            comm.mNext.asyncRecv(rZMinusR.data(), rZMinusR.size()).get();
-            std::array<si64Matrix, 3> in = {A, B, C};
+
+            // This should probably be an async operation
+            i64Matrix test(zMinusR.rows(), zMinusR.cols());
+            comm.mNext.asyncRecv(test.data(), test.size()).get();
+
+            // CompareView
+            i64Matrix tmp = z.mShares[1] - truncationTuple.mRPrime[1];
+            if (!this->compareView(comm, tmp, test)) {
+                std::cout << "PANIC!!!" << std::endl;
+            }
+            std::array<si64Matrix, 3> in = {A, B, z};
             if (mPartyIdx == 0) {
                 std::cout << A.rows() << " " << A.cols() << " " << B.rows() << " " << B.cols() << " " << C.rows() << " "
                           << C.cols() << std::endl;
@@ -598,13 +614,16 @@ namespace aby3 {
             if (!this->verifyTripleUsingAnother(comm, in, triple)) {
                 std::cout << "WTF!!!" << std::endl;
             } else {
-                // Compareview C.mShares[1].data()-truncationTuple.mR == next.zMinusR.data()
-
-                //Reconstruct
-                // (z' - r) = C.mShares[0] - trunc. + C.mShares[1] - trunc. + zMinusR
-                i64Matrix zPrimeMinusR = (C.mShares[0] - truncationTuple.mR) + (C.mShares[1] - truncationTuple.mR) + rZMinusR;
-                for (int i = 0; i < zPrimeMinusR.size(); ++i){
-                    C(i)[0] = truncationTuple.mRTrunc(i)[0] + (zPrimeMinusR(i) >> shift);
+                i64Matrix tr = zMinusR + tmp + test;
+                if (mPartyIdx == 0) {
+                    for (int i = 0; i < C.mShares[0].size(); i++) {
+                        C.mShares[0](i) += tr(i) >> shift;
+                    }
+                }
+                if (mPartyIdx == 2) {
+                    for (int i = 0; i < C.mShares[0].size(); i++) {
+                        C.mShares[1](i) += tr(i) >> shift;
+                    }
                 }
                 std::cout << "FUCK YEA" << std::endl;
             }
@@ -661,6 +680,25 @@ bool aby3::Sh3Evaluator::compareView(CommPkg &comm, i64Matrix &x) {
     }
     return true;
 }
+
+bool aby3::Sh3Evaluator::compareView(CommPkg &comm, i64Matrix &x, i64Matrix &y) {
+    comm.mNext.asyncSendCopy(x.data(), x.size());
+
+    i64Matrix xPrev = i64Matrix(x.rows(), x.cols());
+    comm.mPrev.recv(xPrev.data(), xPrev.size());
+
+    if (y != xPrev) {
+        if(mPartyIdx == 0) {
+            std::cout << x << std::endl << std::endl;
+            std::cout << xPrev << std::endl << std::endl;
+            std::cout << y << std::endl;
+        }
+        comm.mPrev.cancel();
+        comm.mNext.cancel();
+        return false;
+    }
+    return true;
+    }
 
 void aby3::Sh3Evaluator::reveal(CommPkg &comm, const si64Matrix &x, i64Matrix &dest) {
     if (dest.rows() != static_cast<i64>(x.rows()) || dest.cols() != static_cast<i64>(x.cols()))
