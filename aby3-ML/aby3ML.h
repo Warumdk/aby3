@@ -17,7 +17,10 @@ namespace aby3
 		Sh3Encryptor mEnc;
 		Sh3Evaluator mEval;
 		Sh3Verifier mVerify;
-        std::vector<std::array<si64Matrix, 3>> mTriples;
+        std::vector<std::array<si64Matrix, 3>> mTruncTriples;
+        std::vector<std::array<si64Matrix, 3>> mTriples1;
+        std::vector<std::array<si64Matrix, 3>> mTriples2;
+        std::vector<std::array<si64Matrix, 3>> mTriples3;
 
 		Sh3Runtime mRt;
 		bool mPrint = true;
@@ -27,22 +30,9 @@ namespace aby3
 			return mRt.mPartyIdx;
 		}
 
-		void multiplicationTriples(int rowsA, int colsA, int rowsB, int colsB, int N){
+		std::vector<std::array<si64Matrix, 3>> multiplicationTriples(int rowsA, int colsA, int rowsB, int colsB, int N){
 		    CommPkg c{mPreproPrev, mPreproNext};
-            std::vector<std::array<si64Matrix , 3>>  newTriples = mVerify.generateTriples(c, N, 10, 10, 8, colsA, rowsB, colsB);
-            mTriples.insert(mTriples.end(), newTriples.begin(), newTriples.end());
-		}
-
-        template<Decimal D>
-		bool verify(sf64Matrix<D> A, sf64Matrix<D> B, sf64Matrix<D> C) {
-		    std::array<si64Matrix, 3> triple = {A.i64Cast(), B.i64Cast(), C.i64Cast()};
-            CommPkg c{mPreproPrev, mPreproNext};
-            if (mTriples.empty()) {
-                std::cout << "Wait wat" << std::endl;
-            }
-            bool res = mVerify.verifyTripleUsingAnother(c, triple, mTriples.back());
-            mTriples.pop_back();
-            return res;
+            return mVerify.generateTriples(c, N, 10, 40, rowsA, colsA, rowsB, colsB);
 		}
 
 		void init(u64 partyIdx, oc::Session& prev, oc::Session& next, oc::block seed);
@@ -125,10 +115,16 @@ namespace aby3
 		sf64Matrix<D> mul(const sf64Matrix<D>& left, const sf64Matrix<D>& right)
 		{
 			sf64Matrix<D> dest;
-			sf64Matrix<D> derp;
-			std::cout << "wat1" << std::endl;
-			mEval.asyncMalMul(mRt.noDependencies(), left, right, derp, mTriples.back()).get();
-			mEval.asyncMul(mRt.noDependencies(), left, right, dest).get();
+            if (left.rows() == mTriples1[0][0].rows() && left.cols() == mTriples1[0][0].cols()) {
+                mEval.asyncMalMul(mRt.noDependencies(), left, right, dest, mTriples1.back()).get();
+                mTriples1.pop_back();
+            } else if (left.rows() == mTriples2[0][0].rows() && left.cols() == mTriples2[0][0].cols()) {
+                mEval.asyncMalMul(mRt.noDependencies(), left, right, dest, mTriples2.back()).get();
+                mTriples2.pop_back();
+            } else {
+                mEval.asyncMalMul(mRt.noDependencies(), left, right, dest, mTriples3.back()).get();
+                mTriples3.pop_back();
+		    }
 			return dest;
 		}
 
@@ -136,7 +132,9 @@ namespace aby3
 		sf64Matrix<D> mulTruncate(const sf64Matrix<D>& left, const sf64Matrix<D>& right, u64 shift)
 		{
 			sf64Matrix<D> dest;
-			mEval.asyncMul(mRt.noDependencies(), left, right, dest, shift).get();
+			mEval.asyncMalMulTrunc(mRt.noDependencies(), left, right, dest,shift, mTruncTriples.back()).get();
+			mTruncTriples.pop_back();
+			//mEval.asyncMul(mRt.noDependencies(), left, right, dest, shift).get();
 			return dest;
 		}
 

@@ -101,7 +101,6 @@ double test_linearModel(
 	Matrix errorT = error.transpose();
 	Matrix l2 = engine.mul(errorT, error);
 
-
 	return engine.reveal(l2(0)) / (double)y.rows();
 }
 
@@ -154,23 +153,18 @@ void SGD_Linear(
 
 		// compute the errors on the current batch.
 		Matrix error = engine.mul(XX, w);
-        //bool v = engine.verify(XX, w, error);
-        //if (!v) {
-        //    std::cout << "OH NO!!!" << std::endl;
-        //}
         error -= YY;
 
+        DEBUG_PRINT(engine << "E[" << i << "] " << engine.reveal(error) << std::endl);
 
-		DEBUG_PRINT(engine << "E[" << i << "] " << engine.reveal(error) << std::endl);
 
+        // compute XX = XX^T
+        XX.transposeInPlace();
 
-		// compute XX = XX^T
-		XX.transposeInPlace();
-
-		// apply the update function  w = w - a/|B| (XX^T * (XX * w - YY))
-		Matrix update = engine.mulTruncate(XX, error, aB);
-		//std::cout << update << std::endl;
-		w = w - update;
+        // apply the update function  w = w - a/|B| (XX^T * (XX * w - YY))
+        Matrix update = engine.mulTruncate(XX, error, aB);
+        //std::cout << update << std::endl;
+        w = w - update;
 
 		DEBUG_PRINT(engine << "U[" << i << "] " << engine.reveal(update) << std::endl);
 		DEBUG_PRINT(engine << "W[" << i << "] " << engine.reveal(w) << std::endl);

@@ -605,7 +605,7 @@ namespace aby3 {
                 std::cout << "PANIC!!!" << std::endl;
             }
             std::array<si64Matrix, 3> in = {A, B, z};
-            if (mPartyIdx == 0) {
+            if (mPartyIdx == -1) {
                 std::cout << A.rows() << " " << A.cols() << " " << B.rows() << " " << B.cols() << " " << C.rows() << " "
                           << C.cols() << std::endl;
                 std::cout << triple[0].rows() << " " << triple[0].cols() << " " << triple[1].rows() << " "
@@ -615,17 +615,16 @@ namespace aby3 {
                 std::cout << "WTF!!!" << std::endl;
             } else {
                 i64Matrix tr = zMinusR + tmp + test;
-                if (mPartyIdx == 0) {
+                if (mPartyIdx == 2) {
                     for (int i = 0; i < C.mShares[0].size(); i++) {
                         C.mShares[0](i) += tr(i) >> shift;
                     }
                 }
-                if (mPartyIdx == 2) {
-                    for (int i = 0; i < C.mShares[0].size(); i++) {
+                if (mPartyIdx == 0) {
+                    for (int i = 0; i < C.mShares[1].size(); i++) {
                         C.mShares[1](i) += tr(i) >> shift;
                     }
                 }
-                std::cout << "FUCK YEA" << std::endl;
             }
         }).getClosure();
     }
