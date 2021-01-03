@@ -32,7 +32,7 @@ namespace aby3
 
 		std::vector<std::array<si64Matrix, 3>> multiplicationTriples(int rowsA, int colsA, int rowsB, int colsB, int N){
 		    CommPkg c{mPreproPrev, mPreproNext};
-            return mVerify.generateTriples(c, N, 10, 40, rowsA, colsA, rowsB, colsB);
+            return mVerify.generateTriples(c, N, 10, 10, rowsA, colsA, rowsB, colsB);
 		}
 
 		void init(u64 partyIdx, oc::Session& prev, oc::Session& next, oc::block seed);
