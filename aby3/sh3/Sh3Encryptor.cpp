@@ -128,6 +128,42 @@ namespace aby3
 
     }
 
+    Sh3Task Sh3Encryptor::localMalIntMatrix(Sh3Task dep, const i64Matrix & m, si64Matrix & ret) {
+        return dep.then([this, &m, &ret](CommPkg& comm, Sh3Task& self) {
+            if (ret.cols() != static_cast<u64>(m.cols()) ||
+                ret.size() != static_cast<u64>(m.size()))
+                throw std::runtime_error(LOCATION);
+            this->rand(ret);
+            //reconstruct
+            i64Matrix r = i64Matrix(m.rows(), m.cols());
+            i64Matrix rPrev = i64Matrix(m.rows(), m.cols());
+            i64Matrix rNext = i64Matrix(m.rows(), m.cols());
+
+            comm.mPrev.recv(rPrev.data(), rPrev.size());
+            comm.mNext.recv(rNext.data(), rNext.size());
+            if ((ret.mShares[0] - ret.mShares[1]) != (rNext - rPrev)) {
+                std::cout << ret.mShares[0] << std::endl << std::endl << ret.mShares[1] << std::endl << std::endl << rNext << std::endl << std::endl << rPrev << std::endl;
+                throw std::runtime_error(LOCATION);
+            }
+            r = rNext + ret.mShares[1];
+
+            i64Matrix y = m - r;
+            comm.mPrev.asyncSendCopy(y.data(), y.size());
+            comm.mNext.asyncSendCopy(y.data(), y.size());
+
+            //CompareView
+            comm.mNext.asyncSendCopy(y.data(), y.size());
+            i64Matrix yPrev = i64Matrix(y.rows(), y.cols());
+            comm.mPrev.recv(yPrev.data(), yPrev.size());
+            if (y != yPrev) {
+                throw std::runtime_error(LOCATION);
+            }
+
+            ret.mShares[0] += y;
+            ret.mShares[1] -= y;
+        }).getClosure();
+    }
+
     void Sh3Encryptor::remoteIntMatrix(CommPkg & comm, si64Matrix & ret)
     {
 
@@ -153,6 +189,36 @@ namespace aby3
                 //oc::lout << self.mRuntime->mPartyIdx << " remoteIntMatrix 2" << std::endl;
                 fu.get();
             });
+        }).getClosure();
+    }
+
+    Sh3Task Sh3Encryptor::remoteMalIntMatrix(Sh3Task dep, si64Matrix & ret){
+        return dep.then([this, &ret](CommPkg& comm, Sh3Task& self) {
+            this->rand(ret);
+            i64Matrix y = i64Matrix(ret.rows(), ret.cols());
+            if (mPartyIdx == 2) {
+                i64Matrix r = ret.mShares[1] + ret.mShares[0];
+                comm.mNext.asyncSendCopy(r.data(), r.size());
+                comm.mNext.recv(y.data(), y.size());
+                ret.mShares[0] -= y;
+                ret.mShares[1] += y;
+            }
+            else if (mPartyIdx == 1) {
+                i64Matrix r = ret.mShares[0] + ret.mShares[1];
+                comm.mPrev.asyncSendCopy(r.data(), r.size());
+                comm.mPrev.recv(y.data(), y.size());
+                ret.mShares[0] += y;
+                ret.mShares[1] += y;
+            }
+
+            //CompareView
+            comm.mNext.asyncSendCopy(y.data(), y.size());
+            i64Matrix yPrev = i64Matrix(y.rows(), y.cols());
+            comm.mPrev.recv(yPrev.data(), yPrev.size());
+            if (y != yPrev) {
+                throw std::runtime_error(LOCATION);
+            }
+            std::cout << "WASSUP" << std::endl;
         }).getClosure();
     }
 

@@ -41,16 +41,24 @@ namespace aby3
         // generates a integer sharing of the matrix m and places the result in dest
         void localIntMatrix(CommPkg& comm, const i64Matrix& m, si64Matrix& dest);
         Sh3Task localIntMatrix(Sh3Task dep, const i64Matrix& m, si64Matrix& dest);
+        Sh3Task localMalIntMatrix(Sh3Task dep, const i64Matrix& m, si64Matrix& dest);
 
         // generates a integer sharing of the matrix input by the remote party and places the result in dest
         void remoteIntMatrix(CommPkg& comm, si64Matrix& dest);
         Sh3Task remoteIntMatrix(Sh3Task dep, si64Matrix& dest);
+        Sh3Task remoteMalIntMatrix(Sh3Task dep, si64Matrix& dest);
 
 		template<Decimal D>
 		Sh3Task localFixedMatrix(Sh3Task dep, const f64Matrix<D>& m, sf64Matrix<D>& dest);
 
+        template<Decimal D>
+        Sh3Task localMalFixedMatrix(Sh3Task dep, const f64Matrix<D>& m, sf64Matrix<D>& dest);
+
 		template<Decimal D>
 		Sh3Task remoteFixedMatrix(Sh3Task dep, sf64Matrix<D>& dest);
+
+        template<Decimal D>
+        Sh3Task remoteMalFixedMatrix(Sh3Task dep, sf64Matrix<D>& dest);
 
         // generates a binary sharing of the matrix m and places the result in dest
         void localBinMatrix(CommPkg& comm, const i64Matrix& m, sbMatrix& dest);
@@ -170,6 +178,17 @@ namespace aby3
 		return localIntMatrix(dep, mCast, destCast);
 	}
 
+    template<Decimal D>
+    Sh3Task Sh3Encryptor::localMalFixedMatrix(Sh3Task dep, const f64Matrix<D>& m, sf64Matrix<D>& dest) {
+        static_assert(sizeof(f64<D>) == sizeof(i64), "assumpition for this cast.");
+        auto& mCast = (const i64Matrix&)m;
+
+        static_assert(sizeof(sf64Matrix<D>) == sizeof(si64Matrix), "assumpition for this cast.");
+        auto& destCast = (si64Matrix&)dest;
+
+        return localMalIntMatrix(dep, mCast, destCast);
+    }
+
 	template<Decimal D>
 	Sh3Task Sh3Encryptor::remoteFixedMatrix(Sh3Task dep, sf64Matrix<D>& dest)
 	{
@@ -180,6 +199,13 @@ namespace aby3
 		return remoteIntMatrix(dep, destCast);
 	}
 
+    template<Decimal D>
+    Sh3Task Sh3Encryptor::remoteMalFixedMatrix(Sh3Task dep, sf64Matrix<D>& dest){
+        static_assert(sizeof(sf64Matrix<D>) == sizeof(si64Matrix), "assumpition for this cast.");
+        auto& destCast = (si64Matrix&)dest;
+
+        return remoteMalIntMatrix(dep, destCast);
+    }
 
 
     template<Decimal D>

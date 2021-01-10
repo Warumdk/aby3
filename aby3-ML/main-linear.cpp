@@ -78,16 +78,16 @@ int linear_main_3pc_sh(int N, int Dim, int B, int IT, int testN, int pIdx, bool 
 	{
 		train_data  = p.localInput<D>(val_train_data);
 		train_label = p.localInput<D>(val_train_label);
-		W2          = p.localInput<D>(val_W2);
-		test_data   = p.localInput<D>(val_test_data);
-		test_label  = p.localInput<D>(val_test_label);
-	}
+        W2          = p.localInput<D>(val_W2);
+        test_data   = p.localInput<D>(val_test_data);
+        test_label  = p.localInput<D>(val_test_label);
+    }
 	else
 	{
-		train_data  = p.remoteInput<D>(0);
-		train_label = p.remoteInput<D>(0);
-		W2          = p.remoteInput<D>(0);
-		test_data   = p.remoteInput<D>(0);
+        train_data  = p.remoteInput<D>(0);
+        train_label = p.remoteInput<D>(0);
+        W2          = p.remoteInput<D>(0);
+        test_data   = p.remoteInput<D>(0);
 		test_label  = p.remoteInput<D>(0);
 	}
 

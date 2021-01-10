@@ -45,7 +45,8 @@ namespace aby3
 			mNext.asyncSendCopy(size);
 			mPrev.asyncSendCopy(size);
 			sf64Matrix<D> dest(size[0],size[1]);
-			mEnc.localFixedMatrix(mRt.noDependencies(), val, dest).get();
+			//mEnc.localFixedMatrix(mRt.noDependencies(), val, dest).get();
+			mEnc.localMalFixedMatrix(mRt.noDependencies(), val, dest).get();
 			return dest;
 		}
 
@@ -64,15 +65,17 @@ namespace aby3
 		sf64Matrix<D> remoteInput(u64 partyIdx)
 		{
 			std::array<u64, 2> size;
-			if (partyIdx == (mRt.mPartyIdx + 1) % 3)
-				mNext.recv(size);
-			else if (partyIdx == (mRt.mPartyIdx + 2) % 3)
-				mPrev.recv(size);
+			if (partyIdx == (mRt.mPartyIdx + 1) % 3) {
+                mNext.recv(size);
+            } else if (partyIdx == (mRt.mPartyIdx + 2) % 3) {
+                mPrev.recv(size);
+            }
 			else
 				throw RTE_LOC;
 
 			sf64Matrix<D> dest(size[0], size[1]);
-			mEnc.remoteFixedMatrix(mRt.noDependencies(), dest).get();
+			//mEnc.remoteFixedMatrix(mRt.noDependencies(), dest).get();
+			mEnc.remoteMalFixedMatrix(mRt.noDependencies(), dest).get();
 			return dest;
 		}
 
