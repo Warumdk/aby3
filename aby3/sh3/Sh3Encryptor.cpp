@@ -218,7 +218,6 @@ namespace aby3
             if (y != yPrev) {
                 throw std::runtime_error(LOCATION);
             }
-            std::cout << "WASSUP" << std::endl;
         }).getClosure();
     }
 
